@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consulta de Processo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --tinta: #1c2b3a;
+    --tinta-clara: #33465c;
+    --papel: #faf7f2;
+    --papel-escuro: #efe9df;
+    --selo: #a6793f;
+    --selo-escuro: #8a6431;
+    --sucesso: #2f6e4f;
+    --erro: #a13d3d;
+    --borda: #ddd4c4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px;
+    background: transparent;
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: var(--tinta);
+    display: flex;
+    justify-content: center;
+  }
+  .card {
+    width: 100%;
+    max-width: 460px;
+    background: var(--papel);
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    padding: 32px 28px;
+    position: relative;
+  }
+  .card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--selo);
+    border-radius: 4px 4px 0 0;
+  }
+  h1 {
+    font-family: 'Source Serif 4', serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 4px 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .subtitulo {
+    font-size: 13.5px;
+    color: var(--tinta-clara);
+    margin: 0 0 22px;
+    line-height: 1.5;
+  }
+  .etapa-marca {
+    font-family: 'Source Serif 4', serif;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--selo-escuro);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin: 14px 0 6px;
+  }
+  input {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--borda);
+    border-radius: 4px;
+    font-size: 15px;
+    font-family: inherit;
+    background: #fff;
+    color: var(--tinta);
+  }
+  input:focus {
+    outline: 2px solid var(--selo);
+    outline-offset: 1px;
+  }
+  button {
+    width: 100%;
+    margin-top: 22px;
+    padding: 13px;
+    background: var(--tinta);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  button:hover:not(:disabled) { background: var(--tinta-clara); }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .valor-selo {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--papel-escuro);
+    border: 1px solid var(--borda);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--selo-escuro);
+    margin-bottom: 18px;
+  }
+
+  .qrcode-box { text-align: center; margin: 18px 0; }
+  .qrcode-box img { width: 190px; height: 190px; border: 1px solid var(--borda); border-radius: 4px; }
+
+  .copia-cola {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .copia-cola input { font-size: 12px; }
+  .copia-cola button {
+    width: auto;
+    margin: 0;
+    padding: 0 16px;
+    white-space: nowrap;
+  }
+
+  .status-linha {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--tinta-clara);
+    margin-top: 18px;
+    padding: 12px;
+    background: var(--papel-escuro);
+    border-radius: 4px;
+  }
+  .ponto-pulsante {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--selo);
+    animation: pulsar 1.4s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulsar {
+    0%, 100% { opacity: 0.3; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+
+  .mensagem-erro {
+    font-size: 13.5px;
+    color: var(--erro);
+    background: #fbeeee;
+    border: 1px solid #e7c6c6;
+    padding: 11px 12px;
+    border-radius: 4px;
+    margin-top: 14px;
+  }
+
+  .concluido {
+    text-align: center;
+    padding: 8px 0 4px;
+  }
+  .concluido .icone {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--sucesso);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    margin: 0 auto 14px;
+  }
+  .concluido a button { background: var(--sucesso); }
+  .concluido a button:hover { background: #275e42; }
+
+  .rodape-discreto {
+    text-align: center;
+    font-size: 11.5px;
+    color: #9a9284;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="app">
+  <!-- o conteúdo é montado via JS conforme o estado avança -->
+</div>
+
+<script>
+// >>> AJUSTAR ANTES DE PUBLICAR <<<
+const FUNCTIONS_URL = "https://dwckajtqbvltcatzycej.supabase.co/functions/v1";
+const VALOR_CREDITO = "R$ 8,00";
+
+const app = document.getElementById("app");
+let pedidoId = null;
+let emailAtual = null;
+let poller = null;
+
+function render(html) { app.innerHTML = html; }
+
+function telaInicial(erro) {
+  render(`
+    <div class="etapa-marca">Passo 1 de 4</div>
+    <h1>Buscar um processo</h1>
+    <p class="subtitulo">Cada consulta é cobrada individualmente. Pague o crédito avulso e, assim que o Pix cair, você poderá informar o número do processo.</p>
+    <div class="valor-selo">◆ Crédito avulso — ${VALOR_CREDITO}</div>
+
+    <label for="nome">Nome</label>
+    <input id="nome" placeholder="Seu nome completo" />
+
+    <label for="email">E-mail</label>
+    <input id="email" type="email" placeholder="seu@email.com" />
+
+    <label for="cpf">CPF</label>
+    <input id="cpf" placeholder="Somente números" inputmode="numeric" />
+
+    ${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}
+
+    <button id="btnGerarPix">Gerar Pix — ${VALOR_CREDITO}</button>
+    <div style="text-align:center;margin-top:16px;">
+      <a href="#" id="linkMeusPedidos" style="font-size:13px;color:var(--tinta-clara);">Já paguei antes — consultar meus processos</a>
+    </div>
+  `);
+  document.getElementById("btnGerarPix").onclick = gerarCobranca;
+  document.getElementById("linkMeusPedidos").onclick = (e) => { e.preventDefault(); telaMeusPedidosEmail(); };
+}
+
+async function gerarCobranca() {
+  const nome = document.getElementById("nome").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const cpf = document.getElementById("cpf").value.trim();
+
+  if (!email || !cpf) {
+    telaInicial("Preencha e-mail e CPF para continuar.");
+    return;
+  }
+
+  const btn = document.getElementById("btnGerarPix");
+  btn.disabled = true;
+  btn.textContent = "Gerando cobrança...";
+
+  try {
+    const res = await fetch(`${FUNCTIONS_URL}/criar-cobranca`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome, email, cpf }),
+    });
+    const dados = await res.json();
+    if (!res.ok) throw new Error(dados.erro || "Falha ao gerar cobrança");
+
+    pedidoId = dados.pedido_id;
+    emailAtual = email;
+    telaPagamento(dados.qrcode_base64, dados.copia_e_cola, dados.link_cartao);
+    iniciarPolling();
+  } catch (e) {
+    telaInicial(e.message);
+  }
+}
+
+function telaPagamento(qrBase64, copiaCola, linkCartao) {
+  render(`
+    <div class="etapa-marca">Passo 2 de 4</div>
+    <h1>Pague com Pix ou cartão</h1>
+    <p class="subtitulo">Escaneie o QR Code ou use o código copia-e-cola no app do seu banco. Prefere cartão? Use o link abaixo.</p>
+
+    <div class="qrcode-box">
+      <img src="data:image/png;base64,${qrBase64}" alt="QR Code Pix" />
+    </div>
+
+    <label for="copiaCola">Pix copia e cola</label>
+    <div class="copia-cola">
+      <input id="copiaCola" readonly value="${copiaCola}" />
+      <button id="btnCopiar">Copiar</button>
+    </div>
+
+    ${linkCartao ? `
+      <a href="${linkCartao}" target="_blank" rel="noopener" style="display:block;margin-top:16px;">
+        <button style="background:transparent;color:var(--tinta);border:1px solid var(--borda);">Prefiro pagar com cartão</button>
+      </a>
+    ` : ""}
+
+    <div class="status-linha">
+      <span class="ponto-pulsante"></span>
+      Aguardando confirmação do pagamento...
+    </div>
+  `);
+
+  document.getElementById("btnCopiar").onclick = () => {
+    navigator.clipboard.writeText(copiaCola);
+    const b = document.getElementById("btnCopiar");
+    b.textContent = "Copiado!";
+    setTimeout(() => (b.textContent = "Copiar"), 1800);
+  };
+}
+
+async function telaConfirmarEmail(emailAluno, erro) {
+  render(`
+    <div class="etapa-marca">Passo 3 de 4</div>
+    <h1>Confirme seu e-mail</h1>
+    <p class="subtitulo">Enviamos um código de 6 dígitos para <strong>${emailAluno}</strong>. Isso evita que o crédito seja perdido caso o e-mail digitado esteja errado.</p>
+
+    <label for="codigo">Código de confirmação</label>
+    <input id="codigo" inputmode="numeric" maxlength="6" placeholder="000000" />
+
+    ${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}
+
+    <button id="btnConfirmarCodigo">Confirmar código</button>
+    <div style="text-align:center;margin-top:14px;">
+      <a href="#" id="linkReenviar" style="font-size:13px;color:var(--tinta-clara);">Reenviar código</a>
+    </div>
+  `);
+
+  document.getElementById("btnConfirmarCodigo").onclick = confirmarCodigo;
+  document.getElementById("linkReenviar").onclick = async (e) => {
+    e.preventDefault();
+    await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pedido_id: pedidoId }),
+    });
+    telaConfirmarEmail(emailAluno, "Reenviamos o código — confira sua caixa de entrada.");
+  };
+}
+
+async function confirmarCodigo() {
+  const codigo = document.getElementById("codigo").value.trim();
+
+  try {
+    const res = await fetch(`${FUNCTIONS_URL}/confirmar-codigo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pedido_id: pedidoId, codigo }),
+    });
+    const dados = await res.json();
+    if (!res.ok) throw new Error(dados.erro || "Código incorreto");
+
+    telaBuscarProcesso();
+  } catch (e) {
+    telaConfirmarEmail(emailAtual, e.message);
+  }
+}
+
+function telaBuscarProcesso(erro) {
+  render(`
+    <div class="etapa-marca">Passo 4 de 4</div>
+    <h1>Pagamento confirmado</h1>
+    <p class="subtitulo">Informe o número do processo (formato CNJ) que você quer consultar.</p>
+
+    <label for="numeroProcesso">Número do processo</label>
+    <input id="numeroProcesso" placeholder="0000000-00.0000.0.00.0000" />
+
+    ${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}
+
+    <button id="btnSolicitar">Solicitar processo</button>
+  `);
+  document.getElementById("btnSolicitar").onclick = solicitarProcesso;
+}
+
+async function solicitarProcesso() {
+  const numero = document.getElementById("numeroProcesso").value.trim();
+  if (!numero) { telaBuscarProcesso("Informe o número do processo."); return; }
+
+  const btn = document.getElementById("btnSolicitar");
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
+
+  try {
+    const res = await fetch(`${FUNCTIONS_URL}/solicitar-processo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pedido_id: pedidoId, numero_processo: numero }),
+    });
+    const dados = await res.json();
+    if (!res.ok) throw new Error(dados.erro || "Falha ao solicitar processo");
+
+    telaProcessando();
+    iniciarPolling();
+  } catch (e) {
+    telaBuscarProcesso(e.message);
+  }
+}
+
+function telaProcessando() {
+  render(`
+    <div class="etapa-marca">Quase lá</div>
+    <h1>Buscando o processo</h1>
+    <p class="subtitulo">Isso costuma levar poucos minutos. Não é necessário atualizar a página — o PDF aparece aqui assim que estiver pronto.</p>
+    <div class="status-linha">
+      <span class="ponto-pulsante"></span>
+      Consultando o processo...
+    </div>
+  `);
+}
+
+function telaConcluida(pdfUrl) {
+  clearInterval(poller);
+  render(`
+    <div class="concluido">
+      <div class="icone">✓</div>
+      <h1>Processo pronto</h1>
+      <p class="subtitulo">Seu documento já pode ser baixado.</p>
+      <a href="${pdfUrl}" target="_blank" rel="noopener">
+        <button>Baixar PDF</button>
+      </a>
+    </div>
+  `);
+}
+
+function iniciarPolling() {
+  clearInterval(poller);
+  poller = setInterval(async () => {
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/status-pedido?pedido_id=${pedidoId}`);
+      const dados = await res.json();
+
+      if (dados.status === "pago" && document.querySelector(".qrcode-box")) {
+        clearInterval(poller);
+        await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pedido_id: pedidoId }),
+        });
+        telaConfirmarEmail(emailAtual);
+      } else if (dados.status === "concluido") {
+        telaConcluida(dados.pdf_url);
+      } else if (dados.status === "erro") {
+        clearInterval(poller);
+        telaBuscarProcesso(dados.erro_msg || "Não foi possível concluir a consulta. Fale com o suporte.");
+      }
+    } catch (e) {
+      // silencioso: só tenta de novo no próximo ciclo
+    }
+  }, 4000);
+}
+
+// ---------- Consultar meus processos (pedidos antigos) ----------
+function telaMeusPedidosEmail(erro) {
+  render(`
+    <h1>Consultar meus processos</h1>
+    <p class="subtitulo">Informe o e-mail usado na compra para receber um código de acesso.</p>
+
+    <label for="emailConsulta">E-mail</label>
+    <input id="emailConsulta" type="email" placeholder="seu@email.com" />
+
+    ${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}
+
+    <button id="btnEnviarCodigoConsulta">Enviar código</button>
+    <div style="text-align:center;margin-top:14px;">
+      <a href="#" id="linkVoltar" style="font-size:13px;color:var(--tinta-clara);">Voltar</a>
+    </div>
+  `);
+  document.getElementById("linkVoltar").onclick = (e) => { e.preventDefault(); telaInicial(); };
+  document.getElementById("btnEnviarCodigoConsulta").onclick = async () => {
+    const email = document.getElementById("emailConsulta").value.trim();
+    if (!email) { telaMeusPedidosEmail("Informe o e-mail."); return; }
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/meus-pedidos-solicitar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const dados = await res.json();
+      if (!res.ok) throw new Error(dados.erro || "Não foi possível enviar o código.");
+      telaMeusPedidosCodigo(email);
+    } catch (e) {
+      telaMeusPedidosEmail(e.message);
+    }
+  };
+}
+
+function telaMeusPedidosCodigo(email, erro) {
+  render(`
+    <h1>Digite o código</h1>
+    <p class="subtitulo">Enviamos um código para <strong>${email}</strong>.</p>
+
+    <label for="codigoConsulta">Código</label>
+    <input id="codigoConsulta" inputmode="numeric" maxlength="6" placeholder="000000" />
+
+    ${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}
+
+    <button id="btnConfirmarConsulta">Ver meus processos</button>
+  `);
+  document.getElementById("btnConfirmarConsulta").onclick = async () => {
+    const codigo = document.getElementById("codigoConsulta").value.trim();
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/meus-pedidos-confirmar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, codigo }),
+      });
+      const dados = await res.json();
+      if (!res.ok) throw new Error(dados.erro || "Código incorreto.");
+      telaListaPedidos(dados.pedidos);
+    } catch (e) {
+      telaMeusPedidosCodigo(email, e.message);
+    }
+  };
+}
+
+function telaListaPedidos(pedidos) {
+  const linhas = pedidos.length
+    ? pedidos.map((p) => `
+        <div class="status-linha" style="justify-content:space-between;">
+          <span>${p.numero_processo ?? "—"}</span>
+          ${p.status === "concluido"
+            ? `<a href="${p.pdf_url}" target="_blank" rel="noopener">Baixar PDF</a>`
+            : `<span style="color:var(--selo-escuro);">${p.status.replace("_", " ")}</span>`}
+        </div>`).join("")
+    : `<p class="subtitulo">Nenhum pedido encontrado para esse e-mail.</p>`;
+
+  render(`
+    <h1>Meus processos</h1>
+    ${linhas}
+    <div style="text-align:center;margin-top:18px;">
+      <a href="#" id="linkVoltarLista" style="font-size:13px;color:var(--tinta-clara);">Voltar ao início</a>
+    </div>
+  `);
+  document.getElementById("linkVoltarLista").onclick = (e) => { e.preventDefault(); telaInicial(); };
+}
+
+telaInicial();
+</script>
+
+</body>
+</html>
