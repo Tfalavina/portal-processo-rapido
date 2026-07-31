@@ -206,6 +206,8 @@ const app = document.getElementById("app");
 let pedidoId = null;
 let emailAtual = null;
 let poller = null;
+let dadosPagamento = null;
+let pagamentoTratado = false;
 
 function render(html) { app.innerHTML = html; }
 
@@ -213,8 +215,7 @@ function telaInicial(erro) {
   render(`
     <div class="etapa-marca">Passo 1 de 4</div>
     <h1>Buscar um processo</h1>
-    <p class="subtitulo">Cada consulta é cobrada individualmente. Pague o crédito avulso e, assim que o Pix cair, você poderá informar o número do processo.</p>
-    <div class="valor-selo">◆ Crédito avulso — ${VALOR_CREDITO}</div>
+    <p class="subtitulo">Preencha seus dados para continuar. Na próxima tela você escolhe como prefere pagar.</p>
 
     <label for="nome">Nome</label>
     <input id="nome" placeholder="Seu nome completo" />
@@ -227,7 +228,7 @@ function telaInicial(erro) {
 
     ${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}
 
-    <button id="btnGerarPix">Gerar Pix — ${VALOR_CREDITO}</button>
+    <button id="btnGerarPix">Continuar</button>
     <div style="text-align:center;margin-top:16px;">
       <a href="#" id="linkMeusPedidos" style="font-size:13px;color:var(--tinta-clara);">Já paguei antes — consultar meus processos</a>
     </div>
@@ -261,47 +262,80 @@ async function gerarCobranca() {
 
     pedidoId = dados.pedido_id;
     emailAtual = email;
-    telaPagamento(dados.qrcode_base64, dados.copia_e_cola, dados.link_cartao);
+    dadosPagamento = { qr: dados.qrcode_base64, copiaCola: dados.copia_e_cola, linkCartao: dados.link_cartao };
+    telaEscolherPagamento();
     iniciarPolling();
   } catch (e) {
     telaInicial(e.message);
   }
 }
 
-function telaPagamento(qrBase64, copiaCola, linkCartao) {
+function telaEscolherPagamento() {
   render(`
     <div class="etapa-marca">Passo 2 de 4</div>
-    <h1>Pague com Pix ou cartão</h1>
-    <p class="subtitulo">Escaneie o QR Code ou use o código copia-e-cola no app do seu banco. Prefere cartão? Use o link abaixo.</p>
+    <h1>Como você quer pagar?</h1>
+    <p class="subtitulo">Escolha a forma de pagamento do seu crédito avulso.</p>
+    <div class="valor-selo">◆ Crédito avulso — ${VALOR_CREDITO}</div>
+
+    <button id="btnEscolherPix">Pagar com Pix</button>
+    <button id="btnEscolherCartao" style="background:transparent;color:var(--tinta);border:1px solid var(--borda);">Pagar com cartão</button>
+  `);
+  document.getElementById("btnEscolherPix").onclick = () => telaPagamentoPix();
+  document.getElementById("btnEscolherCartao").onclick = () => telaPagamentoCartao();
+}
+
+function telaPagamentoPix() {
+  render(`
+    <div class="etapa-marca">Passo 2 de 4</div>
+    <h1>Pague com Pix</h1>
+    <p class="subtitulo">Escaneie o QR Code ou use o código copia-e-cola no app do seu banco.</p>
 
     <div class="qrcode-box">
-      <img src="data:image/png;base64,${qrBase64}" alt="QR Code Pix" />
+      <img src="data:image/png;base64,${dadosPagamento.qr}" alt="QR Code Pix" />
     </div>
 
     <label for="copiaCola">Pix copia e cola</label>
     <div class="copia-cola">
-      <input id="copiaCola" readonly value="${copiaCola}" />
+      <input id="copiaCola" readonly value="${dadosPagamento.copiaCola}" />
       <button id="btnCopiar">Copiar</button>
     </div>
-
-    ${linkCartao ? `
-      <a href="${linkCartao}" target="_blank" rel="noopener" style="display:block;margin-top:16px;">
-        <button style="background:transparent;color:var(--tinta);border:1px solid var(--borda);">Prefiro pagar com cartão</button>
-      </a>
-    ` : ""}
 
     <div class="status-linha">
       <span class="ponto-pulsante"></span>
       Aguardando confirmação do pagamento...
     </div>
+    <div style="text-align:center;margin-top:14px;">
+      <a href="#" id="linkVoltarPagamento" style="font-size:13px;color:var(--tinta-clara);">Voltar</a>
+    </div>
   `);
 
   document.getElementById("btnCopiar").onclick = () => {
-    navigator.clipboard.writeText(copiaCola);
+    navigator.clipboard.writeText(dadosPagamento.copiaCola);
     const b = document.getElementById("btnCopiar");
     b.textContent = "Copiado!";
     setTimeout(() => (b.textContent = "Copiar"), 1800);
   };
+  document.getElementById("linkVoltarPagamento").onclick = (e) => { e.preventDefault(); telaEscolherPagamento(); };
+}
+
+function telaPagamentoCartao() {
+  window.open(dadosPagamento.linkCartao, "_blank", "noopener");
+  render(`
+    <div class="etapa-marca">Passo 2 de 4</div>
+    <h1>Pague com cartão</h1>
+    <p class="subtitulo">Abrimos uma nova aba com o checkout seguro para você concluir o pagamento com cartão. Depois de pagar, volte aqui — esta tela atualiza sozinha.</p>
+
+    <div class="status-linha">
+      <span class="ponto-pulsante"></span>
+      Aguardando confirmação do pagamento...
+    </div>
+    <div style="text-align:center;margin-top:14px;">
+      <a href="${dadosPagamento.linkCartao}" target="_blank" rel="noopener" style="font-size:13px;color:var(--tinta-clara);">Reabrir checkout do cartão</a>
+      &nbsp;·&nbsp;
+      <a href="#" id="linkVoltarPagamento" style="font-size:13px;color:var(--tinta-clara);">Voltar</a>
+    </div>
+  `);
+  document.getElementById("linkVoltarPagamento").onclick = (e) => { e.preventDefault(); telaEscolherPagamento(); };
 }
 
 async function telaConfirmarEmail(emailAluno, erro) {
@@ -424,7 +458,8 @@ function iniciarPolling() {
       const res = await fetch(`${FUNCTIONS_URL}/status-pedido?pedido_id=${pedidoId}`);
       const dados = await res.json();
 
-      if (dados.status === "pago" && document.querySelector(".qrcode-box")) {
+      if (dados.status === "pago" && !pagamentoTratado) {
+        pagamentoTratado = true;
         clearInterval(poller);
         await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
           method: "POST",
@@ -443,6 +478,13 @@ function iniciarPolling() {
     }
   }, 4000);
 }
+
+// ---------- Avisa o iframe pai (Cademi) do tamanho real da página ----------
+function enviarAltura() {
+  window.parent.postMessage({ tipo: "portal-processo-altura", altura: document.body.scrollHeight }, "*");
+}
+new ResizeObserver(enviarAltura).observe(document.body);
+window.addEventListener("load", enviarAltura);
 
 // ---------- Consultar meus processos (pedidos antigos) ----------
 function telaMeusPedidosEmail(erro) {
