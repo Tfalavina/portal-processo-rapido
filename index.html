@@ -8,23 +8,27 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --azul: #16324f;
-    --azul-escuro: #0d1f33;
+    --azul: #4d8fc9;
+    --azul-escuro: #16324f;
     --laranja: #e8752b;
-    --laranja-escuro: #c85f1c;
-    --papel: #ffffff;
-    --fundo-secao: #f5f7fa;
-    --texto: #1c2b3a;
-    --texto-claro: #5b6b7c;
-    --borda: #e2e6ec;
-    --erro: #c0392b;
-    --sucesso: #2f7d4f;
+    --laranja-escuro: #f2914f;
+    --papel: #17181c;
+    --fundo-secao: #212227;
+    --texto: #f2f0ea;
+    --texto-claro: #9a9fa8;
+    --borda: #34363c;
+    --erro: #ff8a80;
+    --erro-bg: #3a1f1d;
+    --erro-borda: #5c2b27;
+    --sucesso: #6fd0a0;
+    --sucesso-bg: #163a2b;
   }
+  html { background: #0b0b0a; }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     padding: 24px 16px;
-    background: transparent;
+    background: #0b0b0a;
     font-family: 'Inter', -apple-system, sans-serif;
     color: var(--texto);
     display: flex;
@@ -89,7 +93,7 @@
   input:focus {
     outline: none;
     border-color: var(--azul);
-    background: #fff;
+    background: #26282e;
   }
   .linha-dupla { display: flex; gap: 10px; }
   .linha-dupla > div { flex: 1; }
@@ -140,7 +144,7 @@
   .tab-metodo svg { width: 22px; height: 22px; }
   .tab-metodo.ativo {
     border-color: var(--azul);
-    background: #eef3f8;
+    background: rgba(77, 143, 201, 0.14);
     color: var(--azul);
   }
 
@@ -148,8 +152,8 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: #fdf1e8;
-    border: 1px solid #f3d5b8;
+    background: rgba(232, 117, 43, 0.14);
+    border: 1px solid rgba(232, 117, 43, 0.4);
     padding: 6px 12px;
     border-radius: 20px;
     font-size: 13px;
@@ -191,8 +195,8 @@
   .mensagem-erro {
     font-size: 13px;
     color: var(--erro);
-    background: #fdecea;
-    border: 1px solid #f5c6c0;
+    background: var(--erro-bg);
+    border: 1px solid var(--erro-borda);
     padding: 10px 12px;
     border-radius: 6px;
     margin-top: 12px;
@@ -215,13 +219,13 @@
     width: 46px; height: 46px;
     border-radius: 50%;
     background: var(--sucesso);
-    color: #fff;
+    color: #0d1f17;
     display: flex; align-items: center; justify-content: center;
     font-size: 22px;
     margin: 0 auto 12px;
   }
-  .concluido button { background: var(--sucesso); }
-  .concluido button:hover { background: #256a41; }
+  .concluido button { background: var(--sucesso); color: #0d1f17; }
+  .concluido button:hover { background: #8adcb6; }
 </style>
 </head>
 <body>
