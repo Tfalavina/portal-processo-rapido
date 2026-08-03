@@ -438,7 +438,7 @@ function mostrarQrCode(qr, copiaCola) {
 function telaPosPagamento() {
   render(`
     <h1>Confirme seu e-mail</h1>
-    <p class="subtitulo">Enviamos um código de 6 dígitos para <strong>${emailAtual}</strong>. Isso evita que o crédito seja perdido caso o e-mail digitado esteja errado.</p>
+    <p class="subtitulo">Enviamos um código de 6 dígitos para <strong id="emailExibido">${emailAtual}</strong>. Isso evita que o crédito seja perdido caso o e-mail digitado esteja errado.</p>
 
     <label for="codigo">Código de confirmação</label>
     <input id="codigo" inputmode="numeric" maxlength="6" placeholder="000000" />
@@ -446,7 +446,10 @@ function telaPosPagamento() {
     <button id="btnConfirmarCodigo">Confirmar código</button>
     <div style="text-align:center;margin-top:14px;">
       <a href="#" id="linkReenviar" style="font-size:12.5px;color:var(--texto-claro);">Reenviar código</a>
+      &nbsp;·&nbsp;
+      <a href="#" id="linkCorrigirEmail" style="font-size:12.5px;color:var(--texto-claro);">Não é esse o seu e-mail?</a>
     </div>
+    <div id="areaCorrigirEmail"></div>
     <div id="areaProcesso"></div>
   `);
 
@@ -459,6 +462,38 @@ function telaPosPagamento() {
       body: JSON.stringify({ pedido_id: pedidoId }),
     });
     document.getElementById("erroCodigo").innerHTML = `<div class="mensagem-erro">Reenviamos o código — confira sua caixa de entrada.</div>`;
+  };
+  document.getElementById("linkCorrigirEmail").onclick = (e) => {
+    e.preventDefault();
+    document.getElementById("areaCorrigirEmail").innerHTML = `
+      <label for="emailCorrigido">Digite o e-mail correto</label>
+      <input id="emailCorrigido" type="email" placeholder="seu@email.com" value="${emailAtual}" />
+      <button id="btnReenviarNovoEmail" class="secundario">Enviar código pra esse e-mail</button>
+    `;
+    document.getElementById("btnReenviarNovoEmail").onclick = async () => {
+      const novoEmail = document.getElementById("emailCorrigido").value.trim();
+      if (!novoEmail) return;
+      const btn = document.getElementById("btnReenviarNovoEmail");
+      btn.disabled = true;
+      btn.textContent = "Enviando...";
+      try {
+        const res = await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pedido_id: pedidoId, novo_email: novoEmail }),
+        });
+        const dados = await res.json();
+        if (!res.ok) throw new Error(dados.erro || "Não foi possível trocar o e-mail.");
+        emailAtual = dados.email || novoEmail;
+        document.getElementById("emailExibido").textContent = emailAtual;
+        document.getElementById("areaCorrigirEmail").innerHTML = "";
+        document.getElementById("erroCodigo").innerHTML = `<div class="mensagem-erro">Código enviado pro novo e-mail — confira a caixa de entrada.</div>`;
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = "Enviar código pra esse e-mail";
+        document.getElementById("areaCorrigirEmail").innerHTML += `<div class="mensagem-erro">${e.message}</div>`;
+      }
+    };
   };
 }
 
@@ -480,6 +515,7 @@ async function confirmarCodigo() {
     document.getElementById("codigo").disabled = true;
     document.getElementById("btnConfirmarCodigo").style.display = "none";
     document.getElementById("linkReenviar").parentElement.style.display = "none";
+    document.getElementById("areaCorrigirEmail").innerHTML = "";
     document.getElementById("erroCodigo").innerHTML = `<div class="confirmado-linha">✓ E-mail confirmado</div>`;
 
     document.getElementById("areaProcesso").innerHTML = `
