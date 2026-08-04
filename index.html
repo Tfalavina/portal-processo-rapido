@@ -683,22 +683,29 @@ function telaMeusPedidosCodigo(email, erro) {
       });
       const dados = await res.json();
       if (!res.ok) throw new Error(dados.erro || "Código incorreto.");
-      telaListaPedidos(dados.pedidos);
+      telaListaPedidos(dados.pedidos, email);
     } catch (e) {
       telaMeusPedidosCodigo(email, e.message);
     }
   };
 }
 
-function telaListaPedidos(pedidos) {
+function telaListaPedidos(pedidos, emailConsulta) {
   const linhas = pedidos.length
-    ? pedidos.map((p) => `
-        <div class="status-linha" style="justify-content:space-between;">
+    ? pedidos.map((p) => {
+        let acao;
+        if (p.status === "concluido") {
+          acao = `<a href="${p.pdf_url}" target="_blank" rel="noopener">Baixar PDF</a>`;
+        } else if (p.status === "pago" || p.status === "em_processamento") {
+          acao = `<button type="button" class="btn-continuar" data-id="${p.id}" data-status="${p.status}" style="width:auto;margin:0;padding:6px 14px;font-size:12.5px;">Continuar</button>`;
+        } else {
+          acao = `<span style="color:var(--laranja-escuro);">${p.status.replace("_", " ")}</span>`;
+        }
+        return `<div class="status-linha" style="justify-content:space-between;">
           <span>${p.numero_processo ?? "—"}</span>
-          ${p.status === "concluido"
-            ? `<a href="${p.pdf_url}" target="_blank" rel="noopener">Baixar PDF</a>`
-            : `<span style="color:var(--laranja-escuro);">${p.status.replace("_", " ")}</span>`}
-        </div>`).join("")
+          ${acao}
+        </div>`;
+      }).join("")
     : `<p class="subtitulo">Nenhum pedido encontrado para esse e-mail.</p>`;
 
   render(`
@@ -709,6 +716,41 @@ function telaListaPedidos(pedidos) {
     </div>
   `);
   document.getElementById("linkVoltarLista").onclick = (e) => { e.preventDefault(); telaFormulario(); };
+
+  document.querySelectorAll(".btn-continuar").forEach((btn) => {
+    btn.onclick = async () => {
+      pedidoId = btn.dataset.id;
+      emailAtual = emailConsulta;
+      pagamentoTratado = true;
+      btn.disabled = true;
+      btn.textContent = "Abrindo...";
+      if (btn.dataset.status === "em_processamento") {
+        // Já pagou, já confirmou o e-mail e já pediu o processo — só falta esperar.
+        telaAguardandoProcesso();
+      } else {
+        // Pagou, mas ainda não confirmou o e-mail nem pediu o processo — manda
+        // um código novo (o antigo já deve ter expirado) e retoma dali.
+        await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pedido_id: pedidoId }),
+        });
+        telaPosPagamento();
+      }
+    };
+  });
+}
+
+function telaAguardandoProcesso() {
+  render(`
+    <h1>Buscando o processo</h1>
+    <p class="subtitulo">Isso costuma levar poucos minutos, podendo levar até algumas horas em casos mais raros. Assim que ficar pronto, o PDF aparece aqui automaticamente — e você também recebe um e-mail com o link, então pode fechar esta aba sem problema.</p>
+    <div class="status-linha">
+      <span class="ponto-pulsante"></span>
+      Buscando o processo...
+    </div>
+  `);
+  iniciarPolling();
 }
 
 telaFormulario();
