@@ -472,12 +472,17 @@ async function pagar() {
       if (dados.email_confirmado) {
         telaBuscarProcesso(dados.saldo_creditos);
       } else {
-        await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        });
-        telaConfirmarEmail();
+        try {
+          const resCodigo = await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+          if (!resCodigo.ok) throw new Error();
+          telaConfirmarEmail();
+        } catch (_e) {
+          telaConfirmarEmail("Não conseguimos enviar o código agora — clique em \"Reenviar código\" para tentar de novo.");
+        }
       }
     } catch (e) {
       telaFormulario(e.message);
@@ -519,12 +524,17 @@ function iniciarPollingPagamento() {
         if (dados.email_confirmado) {
           telaBuscarProcesso(dados.saldo_creditos);
         } else {
-          await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: emailAtual }),
-          });
-          telaConfirmarEmail();
+          try {
+            const resCodigo = await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: emailAtual }),
+            });
+            if (!resCodigo.ok) throw new Error();
+            telaConfirmarEmail();
+          } catch (_e) {
+            telaConfirmarEmail("Não conseguimos enviar o código agora — clique em \"Reenviar código\" para tentar de novo.");
+          }
         }
       }
     } catch (e) {
@@ -572,12 +582,18 @@ function telaConfirmarEmail(erro) {
 
   document.getElementById("linkReenviar").onclick = async (e) => {
     e.preventDefault();
-    await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: emailAtual }),
-    });
-    document.getElementById("erroCodigo").innerHTML = `<div class="mensagem-erro">Reenviamos o código — confira sua caixa de entrada.</div>`;
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailAtual }),
+      });
+      const dados = await res.json();
+      if (!res.ok) throw new Error(dados.erro || "Não foi possível reenviar o código.");
+      document.getElementById("erroCodigo").innerHTML = `<div class="mensagem-erro">Reenviamos o código — confira sua caixa de entrada.</div>`;
+    } catch (e) {
+      document.getElementById("erroCodigo").innerHTML = `<div class="mensagem-erro">${e.message}</div>`;
+    }
   };
 
   document.getElementById("linkCorrigirEmail").onclick = (e) => {
