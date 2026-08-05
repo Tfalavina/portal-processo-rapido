@@ -214,6 +214,41 @@
 
   hr.divisor { border: none; border-top: 1px solid var(--borda); margin: 20px 0; }
 
+  .pacotes { display: flex; gap: 8px; }
+  .pacote {
+    width: auto;
+    flex: 1;
+    margin: 0;
+    padding: 12px 6px;
+    background: var(--fundo-secao);
+    color: var(--texto);
+    border: 1.5px solid var(--borda);
+    border-radius: 8px;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: center;
+  }
+  .pacote .qtd { display: block; font-size: 15px; font-weight: 700; }
+  .pacote .preco { display: block; font-size: 12.5px; color: var(--texto-claro); margin-top: 2px; }
+  .pacote.ativo {
+    border-color: var(--laranja);
+    background: rgba(232, 117, 43, 0.14);
+  }
+  .pacote.ativo .qtd { color: var(--laranja); }
+
+  .saldo-badge {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(111, 208, 160, 0.12);
+    border: 1px solid rgba(111, 208, 160, 0.35);
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 13.5px;
+  }
+  .saldo-badge strong { color: var(--sucesso); font-size: 16px; }
+
   .concluido { text-align: center; padding: 4px 0; }
   .concluido .icone {
     width: 46px; height: 46px;
@@ -236,26 +271,38 @@
 
 <script>
 const FUNCTIONS_URL = "https://dwckajtqbvltcatzycej.supabase.co/functions/v1";
-const VALOR_CREDITO = "R$ 8,00";
+
+const PACOTES = {
+  1: { preco: "R$ 9,00", label: "1 crédito" },
+  5: { preco: "R$ 40,00", label: "5 créditos" },
+  10: { preco: "R$ 75,00", label: "10 créditos" },
+};
 
 const ICONE_CARTAO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>';
 const ICONE_PIX = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 L22 12 L12 22 L2 12 Z"/><circle cx="12" cy="12" r="3.2"/></svg>';
 
 const app = document.getElementById("app");
 let pedidoId = null;
+let consultaId = null;
 let emailAtual = null;
 let poller = null;
-let pagamentoTratado = false;
-let metodoEscolhido = "pix";
+let metodoEscolhido = "cartao";
+let pacoteEscolhido = 5;
 
 function render(html) { app.innerHTML = html; }
 
-// ---------- Página 1: dados pessoais + pagamento (Pix ou Cartão, tudo aqui) ----------
+// ---------- Página 1: dados pessoais + pacote + pagamento (tudo aqui) ----------
 function telaFormulario(erro) {
   render(`
-    <h1>Buscar um processo</h1>
-    <p class="subtitulo">Preencha seus dados e escolha como prefere pagar.</p>
-    <div class="valor-selo">◆ Crédito avulso — ${VALOR_CREDITO}</div>
+    <h1>Comprar créditos</h1>
+    <p class="subtitulo">Escolha a quantidade e preencha seus dados para continuar.</p>
+
+    <h2>Quantidade de créditos</h2>
+    <div class="pacotes">
+      <button type="button" class="pacote" data-qtd="1"><span class="qtd">1</span><span class="preco">${PACOTES[1].preco}</span></button>
+      <button type="button" class="pacote ativo" data-qtd="5"><span class="qtd">5</span><span class="preco">${PACOTES[5].preco}</span></button>
+      <button type="button" class="pacote" data-qtd="10"><span class="qtd">10</span><span class="preco">${PACOTES[10].preco}</span></button>
+    </div>
 
     <h2>Informações pessoais</h2>
     <label for="nome">Nome completo</label>
@@ -275,10 +322,19 @@ function telaFormulario(erro) {
 
     <div id="erroArea">${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}</div>
 
-    <button id="btnPagar">Pagar — ${VALOR_CREDITO}</button>
+    <button id="btnPagar">Pagar — ${PACOTES[pacoteEscolhido].preco}</button>
 
-    <button type="button" id="linkMeusPedidos" class="secundario" style="margin-top:10px;font-size:13px;padding:9px;">Consultar processos finalizados</button>
+    <button type="button" id="linkMeusPedidos" class="secundario" style="margin-top:10px;font-size:13px;padding:9px;">Consultar meus créditos</button>
   `);
+
+  pacoteEscolhido = 5;
+  document.querySelectorAll(".pacote").forEach((btn) => {
+    btn.onclick = () => {
+      pacoteEscolhido = Number(btn.dataset.qtd);
+      document.querySelectorAll(".pacote").forEach((b) => b.classList.toggle("ativo", b === btn));
+      document.getElementById("btnPagar").textContent = `Pagar — ${PACOTES[pacoteEscolhido].preco}`;
+    };
+  });
 
   document.getElementById("tabCartao").onclick = () => selecionarMetodo("cartao");
   document.getElementById("tabPix").onclick = () => selecionarMetodo("pix");
@@ -371,7 +427,7 @@ async function pagar() {
       const res = await fetch(`${FUNCTIONS_URL}/criar-cobranca`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, cpf }),
+        body: JSON.stringify({ nome, email, telefone, cpf, quantidade: pacoteEscolhido }),
       });
       const dados = await res.json();
       if (!res.ok) throw new Error(dados.erro || "Falha ao gerar cobrança");
@@ -379,7 +435,7 @@ async function pagar() {
       pedidoId = dados.pedido_id;
       emailAtual = email;
       mostrarQrCode(dados.qrcode_base64, dados.copia_e_cola);
-      iniciarPolling();
+      iniciarPollingPagamento();
     } catch (e) {
       telaFormulario(e.message);
     }
@@ -403,7 +459,7 @@ async function pagar() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nome, email, telefone,
+          nome, email, telefone, quantidade: pacoteEscolhido,
           numeroCartao, validade, cvv, titular, documentoTitular,
           cep, numeroEndereco,
           cpf: documentoTitular,
@@ -412,15 +468,17 @@ async function pagar() {
       const dados = await res.json();
       if (!res.ok) throw new Error(dados.erro || "Pagamento recusado.");
 
-      pedidoId = dados.pedido_id;
       emailAtual = email;
-      pagamentoTratado = true;
-      await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pedido_id: pedidoId }),
-      });
-      telaPosPagamento();
+      if (dados.email_confirmado) {
+        telaBuscarProcesso(dados.saldo_creditos);
+      } else {
+        await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        telaConfirmarEmail();
+      }
     } catch (e) {
       telaFormulario(e.message);
     }
@@ -450,15 +508,40 @@ function mostrarQrCode(qr, copiaCola) {
   };
 }
 
-// ---------- Página 2: confirmar e-mail + buscar processo (uma tela só) ----------
-function telaPosPagamento() {
+function iniciarPollingPagamento() {
+  clearInterval(poller);
+  poller = setInterval(async () => {
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/status-pagamento?pedido_id=${pedidoId}`);
+      const dados = await res.json();
+      if (dados.status === "pago") {
+        clearInterval(poller);
+        if (dados.email_confirmado) {
+          telaBuscarProcesso(dados.saldo_creditos);
+        } else {
+          await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: emailAtual }),
+          });
+          telaConfirmarEmail();
+        }
+      }
+    } catch (e) {
+      // silencioso: só tenta de novo no próximo ciclo
+    }
+  }, 4000);
+}
+
+// ---------- Confirmação de e-mail (só na primeira compra de cada e-mail) ----------
+function telaConfirmarEmail(erro) {
   render(`
     <h1>Confirme seu e-mail</h1>
-    <p class="subtitulo">Enviamos um código de 6 dígitos para <strong id="emailExibido">${emailAtual}</strong>. Isso evita que o crédito seja perdido caso o e-mail digitado esteja errado.</p>
+    <p class="subtitulo">Enviamos um código de 6 dígitos para <strong>${emailAtual}</strong>. É só dessa vez — nas próximas compras esse passo não aparece mais.</p>
 
     <label for="codigo">Código de confirmação</label>
     <input id="codigo" inputmode="numeric" maxlength="6" placeholder="000000" />
-    <div id="erroCodigo"></div>
+    <div id="erroCodigo">${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}</div>
     <button id="btnConfirmarCodigo">Confirmar código</button>
     <div style="text-align:center;margin-top:14px;">
       <a href="#" id="linkReenviar" style="font-size:12.5px;color:var(--texto-claro);">Reenviar código</a>
@@ -466,19 +549,37 @@ function telaPosPagamento() {
       <a href="#" id="linkCorrigirEmail" style="font-size:12.5px;color:var(--texto-claro);">Não é esse o seu e-mail?</a>
     </div>
     <div id="areaCorrigirEmail"></div>
-    <div id="areaProcesso"></div>
   `);
 
-  document.getElementById("btnConfirmarCodigo").onclick = confirmarCodigo;
+  document.getElementById("btnConfirmarCodigo").onclick = async () => {
+    const codigo = document.getElementById("codigo").value.trim();
+    const btn = document.getElementById("btnConfirmarCodigo");
+    btn.disabled = true;
+    btn.textContent = "Confirmando...";
+    try {
+      const res = await fetch(`${FUNCTIONS_URL}/confirmar-codigo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailAtual, codigo }),
+      });
+      const dados = await res.json();
+      if (!res.ok) throw new Error(dados.erro || "Código incorreto");
+      telaBuscarProcesso(dados.saldo_creditos);
+    } catch (e) {
+      telaConfirmarEmail(e.message);
+    }
+  };
+
   document.getElementById("linkReenviar").onclick = async (e) => {
     e.preventDefault();
     await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pedido_id: pedidoId }),
+      body: JSON.stringify({ email: emailAtual }),
     });
     document.getElementById("erroCodigo").innerHTML = `<div class="mensagem-erro">Reenviamos o código — confira sua caixa de entrada.</div>`;
   };
+
   document.getElementById("linkCorrigirEmail").onclick = (e) => {
     e.preventDefault();
     document.getElementById("areaCorrigirEmail").innerHTML = `
@@ -496,14 +597,12 @@ function telaPosPagamento() {
         const res = await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pedido_id: pedidoId, novo_email: novoEmail }),
+          body: JSON.stringify({ email: emailAtual, novo_email: novoEmail }),
         });
         const dados = await res.json();
         if (!res.ok) throw new Error(dados.erro || "Não foi possível trocar o e-mail.");
         emailAtual = dados.email || novoEmail;
-        document.getElementById("emailExibido").textContent = emailAtual;
-        document.getElementById("areaCorrigirEmail").innerHTML = "";
-        document.getElementById("erroCodigo").innerHTML = `<div class="mensagem-erro">Código enviado pro novo e-mail — confira a caixa de entrada.</div>`;
+        telaConfirmarEmail("Código enviado pro novo e-mail — confira a caixa de entrada.");
       } catch (e) {
         btn.disabled = false;
         btn.textContent = "Enviar código pra esse e-mail";
@@ -513,40 +612,22 @@ function telaPosPagamento() {
   };
 }
 
-async function confirmarCodigo() {
-  const codigo = document.getElementById("codigo").value.trim();
-  const btn = document.getElementById("btnConfirmarCodigo");
-  btn.disabled = true;
-  btn.textContent = "Confirmando...";
-
-  try {
-    const res = await fetch(`${FUNCTIONS_URL}/confirmar-codigo`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pedido_id: pedidoId, codigo }),
-    });
-    const dados = await res.json();
-    if (!res.ok) throw new Error(dados.erro || "Código incorreto");
-
-    document.getElementById("codigo").disabled = true;
-    document.getElementById("btnConfirmarCodigo").style.display = "none";
-    document.getElementById("linkReenviar").parentElement.style.display = "none";
-    document.getElementById("areaCorrigirEmail").innerHTML = "";
-    document.getElementById("erroCodigo").innerHTML = `<div class="confirmado-linha">✓ E-mail confirmado</div>`;
-
-    document.getElementById("areaProcesso").innerHTML = `
-      <hr class="divisor" />
-      <label for="numeroProcesso">Número do processo</label>
-      <input id="numeroProcesso" placeholder="0000000-00.0000.0.00.0000" />
-      <div id="erroProcesso"></div>
-      <button id="btnSolicitar">Solicitar processo</button>
-    `;
-    document.getElementById("btnSolicitar").onclick = solicitarProcesso;
-  } catch (e) {
-    document.getElementById("erroCodigo").innerHTML = `<div class="mensagem-erro">${e.message}</div>`;
-    btn.disabled = false;
-    btn.textContent = "Confirmar código";
-  }
+// ---------- Página 2: saldo + buscar processo ----------
+function telaBuscarProcesso(saldo, erro) {
+  render(`
+    <h1>Buscar processo</h1>
+    <div class="saldo-badge">
+      <span>Seu saldo</span>
+      <strong>${saldo ?? "-"} crédito(s)</strong>
+    </div>
+    <label for="numeroProcesso">Número do processo</label>
+    <input id="numeroProcesso" placeholder="0000000-00.0000.0.00.0000" />
+    <div id="erroProcesso">${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}</div>
+    <button id="btnSolicitar">Solicitar processo</button>
+    <button type="button" id="linkMeusPedidos2" class="secundario" style="margin-top:10px;font-size:13px;padding:9px;">Consultar meus créditos</button>
+  `);
+  document.getElementById("btnSolicitar").onclick = solicitarProcesso;
+  document.getElementById("linkMeusPedidos2").onclick = () => telaMeusPedidosEmail();
 }
 
 async function solicitarProcesso() {
@@ -564,27 +645,33 @@ async function solicitarProcesso() {
     const res = await fetch(`${FUNCTIONS_URL}/solicitar-processo`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pedido_id: pedidoId, numero_processo: numero }),
+      body: JSON.stringify({ email: emailAtual, numero_processo: numero }),
     });
     const dados = await res.json();
     if (!res.ok) throw new Error(dados.erro || "Falha ao solicitar processo");
 
-    document.getElementById("areaProcesso").innerHTML = `
-      <hr class="divisor" />
-      <div class="status-linha">
-        <span class="ponto-pulsante"></span>
-        Buscando o processo... isso costuma levar poucos minutos, podendo levar até algumas horas em casos mais raros. Assim que ficar pronto, o PDF aparece aqui automaticamente — e você também recebe um e-mail com o link, então pode fechar esta aba sem problema.
-      </div>
-    `;
-    iniciarPolling();
+    consultaId = dados.consulta_id;
+    telaAguardandoProcesso();
   } catch (e) {
-    document.getElementById("erroProcesso").innerHTML = `<div class="mensagem-erro">${e.message}</div>`;
     btn.disabled = false;
     btn.textContent = "Solicitar processo";
+    document.getElementById("erroProcesso").innerHTML = `<div class="mensagem-erro">${e.message}</div>`;
   }
 }
 
-function telaConcluida(pdfUrl) {
+function telaAguardandoProcesso() {
+  render(`
+    <h1>Buscando o processo</h1>
+    <p class="subtitulo">Isso costuma levar poucos minutos, podendo levar até algumas horas em casos mais raros. Assim que ficar pronto, o PDF aparece aqui automaticamente — e você também recebe um e-mail com o link, então pode fechar esta aba sem problema.</p>
+    <div class="status-linha">
+      <span class="ponto-pulsante"></span>
+      Buscando o processo...
+    </div>
+  `);
+  iniciarPollingConsulta();
+}
+
+function telaConcluida(pdfUrl, saldo) {
   clearInterval(poller);
   render(`
     <div class="concluido">
@@ -592,32 +679,25 @@ function telaConcluida(pdfUrl) {
       <h1>Processo pronto</h1>
       <p class="subtitulo">Seu documento já pode ser baixado.</p>
       <a href="${pdfUrl}" target="_blank" rel="noopener"><button>Baixar PDF</button></a>
+      <button type="button" id="btnBuscarOutro" class="secundario">Buscar outro processo</button>
     </div>
   `);
+  document.getElementById("btnBuscarOutro").onclick = () => telaBuscarProcesso(saldo);
 }
 
-function iniciarPolling() {
+function iniciarPollingConsulta() {
   clearInterval(poller);
   poller = setInterval(async () => {
     try {
-      const res = await fetch(`${FUNCTIONS_URL}/status-pedido?pedido_id=${pedidoId}`);
+      const res = await fetch(`${FUNCTIONS_URL}/status-pedido?consulta_id=${consultaId}&email=${encodeURIComponent(emailAtual)}`);
       const dados = await res.json();
 
-      if (dados.status === "pago" && !pagamentoTratado) {
-        pagamentoTratado = true;
+      if (dados.status === "concluido") {
         clearInterval(poller);
-        await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pedido_id: pedidoId }),
-        });
-        telaPosPagamento();
-      } else if (dados.status === "concluido") {
-        telaConcluida(dados.pdf_url);
+        telaConcluida(dados.pdf_url, dados.saldo_creditos);
       } else if (dados.status === "erro") {
         clearInterval(poller);
-        const alvo = document.getElementById("erroProcesso") || document.getElementById("erroArea");
-        if (alvo) alvo.innerHTML = `<div class="mensagem-erro">${dados.erro_msg || "Não foi possível concluir a consulta. Fale com o suporte."}</div>`;
+        telaBuscarProcesso(dados.saldo_creditos, dados.erro_msg || "Não foi possível concluir a consulta. Fale com o suporte.");
       }
     } catch (e) {
       // silencioso: só tenta de novo no próximo ciclo
@@ -632,14 +712,14 @@ function enviarAltura() {
 new ResizeObserver(enviarAltura).observe(document.body);
 window.addEventListener("load", enviarAltura);
 
-// ---------- Consultar meus processos (pedidos antigos) ----------
+// ---------- Consultar meus créditos (saldo + histórico) ----------
 function telaMeusPedidosEmail(erro) {
   render(`
-    <h1>Consultar meus processos</h1>
+    <h1>Consultar meus créditos</h1>
     <p class="subtitulo">Informe o e-mail usado na compra para receber um código de acesso.</p>
     <label for="emailConsulta">E-mail</label>
     <input id="emailConsulta" type="email" placeholder="seu@email.com" />
-    ${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}
+    <div id="erroConsulta">${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}</div>
     <button id="btnEnviarCodigoConsulta">Enviar código</button>
     <div style="text-align:center;margin-top:14px;">
       <a href="#" id="linkVoltar" style="font-size:12.5px;color:var(--texto-claro);">Voltar</a>
@@ -670,8 +750,8 @@ function telaMeusPedidosCodigo(email, erro) {
     <p class="subtitulo">Enviamos um código para <strong>${email}</strong>.</p>
     <label for="codigoConsulta">Código</label>
     <input id="codigoConsulta" inputmode="numeric" maxlength="6" placeholder="000000" />
-    ${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}
-    <button id="btnConfirmarConsulta">Ver meus processos</button>
+    <div id="erroConsulta">${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}</div>
+    <button id="btnConfirmarConsulta">Ver meus créditos</button>
   `);
   document.getElementById("btnConfirmarConsulta").onclick = async () => {
     const codigo = document.getElementById("codigoConsulta").value.trim();
@@ -683,74 +763,55 @@ function telaMeusPedidosCodigo(email, erro) {
       });
       const dados = await res.json();
       if (!res.ok) throw new Error(dados.erro || "Código incorreto.");
-      telaListaPedidos(dados.pedidos, email);
+      emailAtual = email;
+      telaListaPedidos(dados.saldo_creditos, dados.consultas, email);
     } catch (e) {
       telaMeusPedidosCodigo(email, e.message);
     }
   };
 }
 
-function telaListaPedidos(pedidos, emailConsulta) {
-  const linhas = pedidos.length
-    ? pedidos.map((p) => {
+function telaListaPedidos(saldo, consultas, emailConsulta) {
+  const linhas = consultas.length
+    ? consultas.map((c) => {
         let acao;
-        if (p.status === "concluido") {
-          acao = `<a href="${p.pdf_url}" target="_blank" rel="noopener">Baixar PDF</a>`;
-        } else if (p.status === "pago" || p.status === "em_processamento") {
-          acao = `<button type="button" class="btn-continuar" data-id="${p.id}" data-status="${p.status}" style="width:auto;margin:0;padding:6px 14px;font-size:12.5px;">Continuar</button>`;
+        if (c.status === "concluido") {
+          acao = `<a href="${c.pdf_url}" target="_blank" rel="noopener">Baixar PDF</a>`;
+        } else if (c.status === "em_processamento") {
+          acao = `<button type="button" class="btn-continuar" data-id="${c.id}" style="width:auto;margin:0;padding:6px 14px;font-size:12.5px;">Acompanhar</button>`;
         } else {
-          acao = `<span style="color:var(--laranja-escuro);">${p.status.replace("_", " ")}</span>`;
+          acao = `<span style="color:var(--laranja-escuro);">${String(c.status).replace("_", " ")}</span>`;
         }
         return `<div class="status-linha" style="justify-content:space-between;">
-          <span>${p.numero_processo ?? "—"}</span>
+          <span>${c.numero_processo ?? "—"}</span>
           ${acao}
         </div>`;
       }).join("")
-    : `<p class="subtitulo">Nenhum pedido encontrado para esse e-mail.</p>`;
+    : `<p class="subtitulo">Nenhuma consulta encontrada para esse e-mail.</p>`;
 
   render(`
-    <h1>Meus processos</h1>
+    <h1>Meus créditos</h1>
+    <div class="saldo-badge">
+      <span>Saldo disponível</span>
+      <strong>${saldo} crédito(s)</strong>
+    </div>
+    <button id="btnNovaConsulta">Buscar novo processo</button>
+    <h2>Histórico</h2>
     ${linhas}
     <div style="text-align:center;margin-top:18px;">
       <a href="#" id="linkVoltarLista" style="font-size:12.5px;color:var(--texto-claro);">Voltar ao início</a>
     </div>
   `);
   document.getElementById("linkVoltarLista").onclick = (e) => { e.preventDefault(); telaFormulario(); };
+  document.getElementById("btnNovaConsulta").onclick = () => telaBuscarProcesso(saldo);
 
   document.querySelectorAll(".btn-continuar").forEach((btn) => {
-    btn.onclick = async () => {
-      pedidoId = btn.dataset.id;
+    btn.onclick = () => {
+      consultaId = btn.dataset.id;
       emailAtual = emailConsulta;
-      pagamentoTratado = true;
-      btn.disabled = true;
-      btn.textContent = "Abrindo...";
-      if (btn.dataset.status === "em_processamento") {
-        // Já pagou, já confirmou o e-mail e já pediu o processo — só falta esperar.
-        telaAguardandoProcesso();
-      } else {
-        // Pagou, mas ainda não confirmou o e-mail nem pediu o processo — manda
-        // um código novo (o antigo já deve ter expirado) e retoma dali.
-        await fetch(`${FUNCTIONS_URL}/enviar-codigo`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pedido_id: pedidoId }),
-        });
-        telaPosPagamento();
-      }
+      telaAguardandoProcesso();
     };
   });
-}
-
-function telaAguardandoProcesso() {
-  render(`
-    <h1>Buscando o processo</h1>
-    <p class="subtitulo">Isso costuma levar poucos minutos, podendo levar até algumas horas em casos mais raros. Assim que ficar pronto, o PDF aparece aqui automaticamente — e você também recebe um e-mail com o link, então pode fechar esta aba sem problema.</p>
-    <div class="status-linha">
-      <span class="ponto-pulsante"></span>
-      Buscando o processo...
-    </div>
-  `);
-  iniciarPolling();
 }
 
 telaFormulario();
