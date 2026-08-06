@@ -298,6 +298,14 @@ function escapeHtml(str) {
   }[c]));
 }
 
+// Aceita o número do processo digitado de qualquer jeito (só números, com ou
+// sem pontuação) e monta o formato padrão CNJ (NNNNNNN-DD.AAAA.J.TR.OOOO).
+function normalizarNumeroProcesso(valor) {
+  const digitos = String(valor).replace(/\D/g, "");
+  if (digitos.length !== 20) return null; // não é um número de processo válido
+  return `${digitos.slice(0, 7)}-${digitos.slice(7, 9)}.${digitos.slice(9, 13)}.${digitos.slice(13, 14)}.${digitos.slice(14, 16)}.${digitos.slice(16, 20)}`;
+}
+
 // ---------- Página 1: dados pessoais + pacote + pagamento (tudo aqui) ----------
 function telaFormulario(erro) {
   render(`
@@ -647,7 +655,8 @@ function telaBuscarProcesso(saldo, erro) {
       <strong>${saldo ?? "-"} crédito(s)</strong>
     </div>
     <label for="numeroProcesso">Número do processo</label>
-    <input id="numeroProcesso" placeholder="0000000-00.0000.0.00.0000" />
+    <input id="numeroProcesso" placeholder="0000000-00.0000.0.00.0000" inputmode="numeric" />
+    <p style="font-size:11.5px;color:var(--texto-claro);margin:4px 0 0;">Pode digitar só os números, sem traço ou ponto — a gente formata sozinho.</p>
     <div id="erroProcesso">${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}</div>
     <button id="btnSolicitar">Solicitar processo</button>
     <button type="button" id="linkMeusPedidos2" class="secundario" style="margin-top:10px;font-size:13px;padding:9px;">Consultar meus créditos</button>
@@ -657,9 +666,14 @@ function telaBuscarProcesso(saldo, erro) {
 }
 
 async function solicitarProcesso() {
-  const numero = document.getElementById("numeroProcesso").value.trim();
-  if (!numero) {
+  const numeroDigitado = document.getElementById("numeroProcesso").value.trim();
+  if (!numeroDigitado) {
     document.getElementById("erroProcesso").innerHTML = `<div class="mensagem-erro">Informe o número do processo.</div>`;
+    return;
+  }
+  const numero = normalizarNumeroProcesso(numeroDigitado);
+  if (!numero) {
+    document.getElementById("erroProcesso").innerHTML = `<div class="mensagem-erro">Número de processo inválido — confira se digitou os 20 dígitos corretos.</div>`;
     return;
   }
 
