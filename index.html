@@ -285,11 +285,18 @@ const app = document.getElementById("app");
 let pedidoId = null;
 let consultaId = null;
 let emailAtual = null;
+let sessaoToken = null;
 let poller = null;
 let metodoEscolhido = "cartao";
 let pacoteEscolhido = 5;
 
 function render(html) { app.innerHTML = html; }
+
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
 
 // ---------- Página 1: dados pessoais + pacote + pagamento (tudo aqui) ----------
 function telaFormulario(erro) {
@@ -470,6 +477,7 @@ async function pagar() {
 
       emailAtual = email;
       if (dados.email_confirmado) {
+        sessaoToken = dados.sessao_token;
         telaBuscarProcesso(dados.saldo_creditos);
       } else {
         try {
@@ -522,6 +530,7 @@ function iniciarPollingPagamento() {
       if (dados.status === "pago") {
         clearInterval(poller);
         if (dados.email_confirmado) {
+          sessaoToken = dados.sessao_token;
           telaBuscarProcesso(dados.saldo_creditos);
         } else {
           try {
@@ -547,7 +556,7 @@ function iniciarPollingPagamento() {
 function telaConfirmarEmail(erro) {
   render(`
     <h1>Confirme seu e-mail</h1>
-    <p class="subtitulo">Enviamos um código de 6 dígitos para <strong>${emailAtual}</strong>. É só dessa vez — nas próximas compras esse passo não aparece mais.</p>
+    <p class="subtitulo">Enviamos um código de 6 dígitos para <strong>${escapeHtml(emailAtual)}</strong>. É só dessa vez — nas próximas compras esse passo não aparece mais.</p>
 
     <label for="codigo">Código de confirmação</label>
     <input id="codigo" inputmode="numeric" maxlength="6" placeholder="000000" />
@@ -574,6 +583,7 @@ function telaConfirmarEmail(erro) {
       });
       const dados = await res.json();
       if (!res.ok) throw new Error(dados.erro || "Código incorreto");
+      sessaoToken = dados.sessao_token;
       telaBuscarProcesso(dados.saldo_creditos);
     } catch (e) {
       telaConfirmarEmail(e.message);
@@ -600,7 +610,7 @@ function telaConfirmarEmail(erro) {
     e.preventDefault();
     document.getElementById("areaCorrigirEmail").innerHTML = `
       <label for="emailCorrigido">Digite o e-mail correto</label>
-      <input id="emailCorrigido" type="email" placeholder="seu@email.com" value="${emailAtual}" />
+      <input id="emailCorrigido" type="email" placeholder="seu@email.com" value="${escapeHtml(emailAtual)}" />
       <button id="btnReenviarNovoEmail" class="secundario">Enviar código pra esse e-mail</button>
     `;
     document.getElementById("btnReenviarNovoEmail").onclick = async () => {
@@ -661,7 +671,7 @@ async function solicitarProcesso() {
     const res = await fetch(`${FUNCTIONS_URL}/solicitar-processo`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: emailAtual, numero_processo: numero }),
+      body: JSON.stringify({ email: emailAtual, numero_processo: numero, sessao_token: sessaoToken }),
     });
     const dados = await res.json();
     if (!res.ok) throw new Error(dados.erro || "Falha ao solicitar processo");
@@ -763,7 +773,7 @@ function telaMeusPedidosEmail(erro) {
 function telaMeusPedidosCodigo(email, erro) {
   render(`
     <h1>Digite o código</h1>
-    <p class="subtitulo">Enviamos um código para <strong>${email}</strong>.</p>
+    <p class="subtitulo">Enviamos um código para <strong>${escapeHtml(email)}</strong>.</p>
     <label for="codigoConsulta">Código</label>
     <input id="codigoConsulta" inputmode="numeric" maxlength="6" placeholder="000000" />
     <div id="erroConsulta">${erro ? `<div class="mensagem-erro">${erro}</div>` : ""}</div>
@@ -780,6 +790,7 @@ function telaMeusPedidosCodigo(email, erro) {
       const dados = await res.json();
       if (!res.ok) throw new Error(dados.erro || "Código incorreto.");
       emailAtual = email;
+      sessaoToken = dados.sessao_token;
       telaListaPedidos(dados.saldo_creditos, dados.consultas, email);
     } catch (e) {
       telaMeusPedidosCodigo(email, e.message);
@@ -799,7 +810,7 @@ function telaListaPedidos(saldo, consultas, emailConsulta) {
           acao = `<span style="color:var(--laranja-escuro);">${String(c.status).replace("_", " ")}</span>`;
         }
         return `<div class="status-linha" style="justify-content:space-between;">
-          <span>${c.numero_processo ?? "—"}</span>
+          <span>${escapeHtml(c.numero_processo) || "—"}</span>
           ${acao}
         </div>`;
       }).join("")
